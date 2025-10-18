@@ -430,7 +430,7 @@
         feather.replace();
     </script>
 		
-	<!-- Firebase SDK -->
+	<!-- Firebase SDK ->
 	<script type="module">
 	  // Import Firebase
 	  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
@@ -459,6 +459,54 @@
 		document.getElementById('waitlist-form').reset();
 	  }
 	</script>	
+	
+	<!-- Firebase SDK + Waitlist handler -->
+	<script type="module">
+	  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
+	  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+
+	  // ← PASTE your firebaseConfig here from the Firebase console
+	  const firebaseConfig = {
+		  apiKey: "AIzaSyB_lEbmkRCKH7p-mfcZ-WiO6wQRydVFZn8",
+		  authDomain: "chamawise-1ef86.firebaseapp.com",
+		  projectId: "chamawise-1ef86",
+		  storageBucket: "chamawise-1ef86.firebasestorage.app",
+		  messagingSenderId: "737399152771",
+		  appId: "1:737399152771:web:e7261713103546cd1e3bb6"
+		};
+
+	  const app = initializeApp(firebaseConfig);
+	  const db = getFirestore(app);
+
+	  async function joinWaitlist(event) {
+		event.preventDefault();
+		const name = document.getElementById('name').value.trim();
+		const email = document.getElementById('email').value.trim();
+
+		if (!name || !email) {
+		  alert('Please provide name and email.');
+		  return;
+		}
+
+		try {
+		  await addDoc(collection(db, 'waitlist'), {
+			name,
+			email,
+			createdAt: serverTimestamp()
+		  });
+
+		  alert('Thanks — you are on the waitlist!');
+		  document.getElementById('waitlist-form').reset();
+		} catch (err) {
+		  console.error('Failed to sign up:', err);
+		  alert('There was a problem signing you up. Try again later.');
+		}
+	  }
+
+	  // expose the function to global scope so the inline form onsubmit can call it
+	  window.joinWaitlist = joinWaitlist;
+	</script>
+
 	
 </body>
 </html>
