@@ -299,6 +299,20 @@
             </div>
         </div>
     </div>
+	
+	<!-- Waitlist Section -->
+	<section class="bg-white py-10" id="waitlist">
+	  <div class="max-w-lg mx-auto text-center">
+		<h2 class="text-2xl font-bold text-green-700 mb-4">Join the Waitlist</h2>
+		<form id="waitlist-form" onsubmit="joinWaitlist(event)" class="space-y-3">
+		  <input id="name" type="text" placeholder="Your Name" class="w-full p-2 border rounded" required>
+		  <input id="email" type="email" placeholder="Your Email" class="w-full p-2 border rounded" required>
+		  <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+			Join Now
+		  </button>
+		</form>
+	  </div>
+	</section>
 
     <!-- Footer -->
     <footer class="bg-white">
@@ -350,5 +364,36 @@
     <script>
         feather.replace();
     </script>
+		
+	<!-- Firebase SDK -->
+	<script type="module">
+	  // Import Firebase
+	  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js";
+	  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js";
+
+	  const firebaseConfig = {
+		apiKey: "YOUR_API_KEY",
+		authDomain: "YOUR_PROJECT.firebaseapp.com",
+		projectId: "YOUR_PROJECT",
+		storageBucket: "YOUR_PROJECT.appspot.com",
+		messagingSenderId: "YOUR_ID",
+		appId: "YOUR_APP_ID"
+	  };
+
+	  const app = initializeApp(firebaseConfig);
+	  const db = getFirestore(app);
+
+	  async function joinWaitlist(event) {
+		event.preventDefault();
+		const name = document.getElementById('name').value;
+		const email = document.getElementById('email').value;
+
+		await addDoc(collection(db, 'waitlist'), { name, email, createdAt: new Date() });
+
+		alert('Thank you for joining the ChamaWise waitlist!');
+		document.getElementById('waitlist-form').reset();
+	  }
+	</script>	
+	
 </body>
 </html>
