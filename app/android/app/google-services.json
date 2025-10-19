@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "737399152771",
+    "project_id": "chamawise-1ef86",
+    "storage_bucket": "chamawise-1ef86.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:737399152771:android:eb23dc2396970ad41e3bb6",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7uWWoNlYVNz5xjR1N1bqwLdALf_S1Fx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:737399152771:android:9dd862b86ebedd031e3bb6",
+        "android_client_info": {
+          "package_name": "com.isoe.chamawise"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7uWWoNlYVNz5xjR1N1bqwLdALf_S1Fx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
