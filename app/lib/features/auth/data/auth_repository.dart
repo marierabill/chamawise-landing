@@ -1,28 +1,44 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 class AuthRepository {
-final FirebaseAuth _auth;
-AuthRepository(this._auth);
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Sign Up
+  Future<User?> signUp(String email, String password) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return credential.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Sign up failed');
+    }
+  }
 
-// Sign up with email
-Future<UserCredential> signUpWithEmail(String email, String password) async {
-return await _auth.createUserWithEmailAndPassword(email: email, password: password);
-}
+  // Sign In
+  Future<User?> signIn(String email, String password) async {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return credential.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Login failed');
+    }
+  }
 
+  // Password Reset
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
+  }
 
-// Sign in with email
-Future<UserCredential> signInWithEmail(String email, String password) async {
-return await _auth.signInWithEmailAndPassword(email: email, password: password);
-}
+  // Sign Out
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
 
-
-// Sign out
-Future<void> signOut() async {
-await _auth.signOut();
-}
-
-
-User? currentUser() => _auth.currentUser;
+  // Stream for auth state changes
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 }
