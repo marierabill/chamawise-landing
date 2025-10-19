@@ -1,44 +1,45 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../domain/auth_service.dart';
+
+
+
+/// Dummy Auth Repository to simulate login/signup behavior
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository();
+});
 
 class AuthRepository {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Mock user credentials
+  final Map<String, String> _dummyUsers = {
+    'test@example.com': 'password123',
+    'user@chama.com': 'chama123',
+  };
 
-  // Sign Up
-  Future<User?> signUp(String email, String password) async {
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return credential.user;
-    } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? 'Sign up failed');
+  Future<void> signIn(String email, String password) async {
+    await Future.delayed(const Duration(seconds: 1)); // simulate network delay
+    if (!_dummyUsers.containsKey(email)) {
+      throw Exception('User not found');
+    }
+    if (_dummyUsers[email] != password) {
+      throw Exception('Invalid password');
     }
   }
 
-  // Sign In
-  Future<User?> signIn(String email, String password) async {
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return credential.user;
-    } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? 'Login failed');
+  Future<void> signUp(String email, String password) async {
+    await Future.delayed(const Duration(seconds: 1));
+    if (_dummyUsers.containsKey(email)) {
+      throw Exception('User already exists');
     }
+    _dummyUsers[email] = password;
   }
 
-  // Password Reset
-  Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
-  }
-
-  // Sign Out
   Future<void> signOut() async {
-    await _auth.signOut();
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
-  // Stream for auth state changes
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<String?> get authStateChanges async* {
+    // Mock auth state stream
+    yield null; // initially logged out
+  }
 }
