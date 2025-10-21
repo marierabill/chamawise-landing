@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../home/presentation/home_screen.dart';
 import 'login_screen.dart';
-import '../../../core/constants/app_colors.dart'; // optional
-import '../../onboarding/onboarding_screen.dart';
+
+import 'onboarding_screen.dart';
 
 final authStateProvider = StreamProvider<User?>(
   (ref) => FirebaseAuth.instance.authStateChanges(),
