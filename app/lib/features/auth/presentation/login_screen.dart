@@ -2,78 +2,77 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/auth_service.dart'; // ✅ FIXED: use auth_service.dart instead of auth_repository.dart
 import '../data/auth_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:chamawise_app/features/home/presentation/home_screen.dart';
+import 'package:chamawise_app/features/auth/presentation/register_screen.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String email = '';
-  String password = '';
-  bool isLoading = false;
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _password = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _loading = false;
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
-
-    setState(() => isLoading = true);
-
+    setState(() => _loading = true);
     try {
-      await ref.read(authRepositoryProvider).signIn(email, password);
-      if (mounted) Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
+      await _auth.signInWithEmailAndPassword(
+        email: _email.text.trim(),
+        password: _password.text.trim(),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: ${e.toString()}')),
+        SnackBar(content: Text(e.message ?? 'Login failed')),
       );
     } finally {
-      setState(() => isLoading = false);
+      setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(title: const Text("Login")),
       body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                onSaved: (val) => email = val!.trim(),
-                validator: (val) =>
-                    val!.isEmpty ? 'Please enter your email' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                onSaved: (val) => password = val!,
-                validator: (val) =>
-                    val!.isEmpty ? 'Please enter your password' : null,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: isLoading ? null : _login,
-                child: isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Login'),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/register'),
-                child: const Text("Don't have an account? Register"),
-              )
-            ],
-          ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(
+              controller: _email,
+              decoration: const InputDecoration(labelText: "Email"),
+            ),
+            TextField(
+              controller: _password,
+              decoration: const InputDecoration(labelText: "Password"),
+              obscureText: true,
+            ),
+            const SizedBox(height: 20),
+            _loading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _login,
+                    child: const Text("Login"),
+                  ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                );
+              },
+              child: const Text("Don't have an account? Register"),
+            ),
+          ],
         ),
       ),
     );
