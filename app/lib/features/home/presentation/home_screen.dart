@@ -1,29 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../auth/data/auth_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class HomeScreen extends ConsumerWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chamawise Home'),
+        title: const Text('Home'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await ref.read(authRepositoryProvider).signOut();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
+              await FirebaseAuth.instance.signOut();
             },
-          )
+          ),
         ],
       ),
-      body: const Center(
-        child: Text('Welcome to Chamawise 🎉'),
+      body: Center(
+        child: Text(
+          'Welcome ${user?.email ?? 'Guest'}!',
+          style: const TextStyle(fontSize: 20),
+        ),
       ),
     );
   }
