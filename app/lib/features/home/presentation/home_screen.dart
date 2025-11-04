@@ -14,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final user = FirebaseAuth.instance.currentUser;
   Map<String, dynamic>? profileData;
+  bool _loading = true;
 
   @override
   void initState() {
@@ -26,46 +27,87 @@ class _HomeScreenState extends State<HomeScreen> {
     final doc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
     setState(() {
       profileData = doc.data();
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("ChamaWise Home"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
+          // 👤 Profile Button with Avatar
+          GestureDetector(
+            onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ProfileScreen()),
               ).then((_) => fetchProfile());
             },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: CircleAvatar(
+                backgroundColor: Colors.grey.shade300,
+                backgroundImage: (profileData?['profileImageUrl'] != null &&
+                        (profileData!['profileImageUrl'] as String).isNotEmpty)
+                    ? NetworkImage(profileData!['profileImageUrl'])
+                    : null,
+                child: (profileData?['profileImageUrl'] == null ||
+                        (profileData!['profileImageUrl'] as String).isEmpty)
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
+              ),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
+              if (context.mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }
             },
           ),
         ],
       ),
       body: Center(
         child: profileData == null
-            ? const CircularProgressIndicator()
+            ? const Text("No profile data found.")
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Welcome, ${profileData!['name'].isNotEmpty ? profileData!['name'] : profileData!['email']}!",
-                      style: const TextStyle(fontSize: 18)),
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey.shade300,
+                    backgroundImage: (profileData?['profileImageUrl'] != null &&
+                            (profileData!['profileImageUrl'] as String).isNotEmpty)
+                        ? NetworkImage(profileData!['profileImageUrl'])
+                        : null,
+                    child: (profileData?['profileImageUrl'] == null ||
+                            (profileData!['profileImageUrl'] as String).isEmpty)
+                        ? const Icon(Icons.person, size: 50, color: Colors.white)
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Welcome, ${profileData!['name']?.isNotEmpty == true ? profileData!['name'] : 'User'}!",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
-                  Text("Email: ${profileData!['email']}"),
+                  Text(
+                    "Email: ${profileData!['email'] ?? 'N/A'}",
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
       ),
