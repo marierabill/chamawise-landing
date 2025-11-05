@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'features/auth/presentation/splash_screen.dart';
 import 'firebase_options.dart';
-import 'router.dart'; // ✅ make sure this file exists now
+import 'features/auth/presentation/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +23,9 @@ class ChamawiseApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.grey.shade50,
       ),
-      onGenerateRoute: AppRouter.generateRoute,
-      initialRoute: '/', // ✅ Starts at SplashScreen
+      home: const SplashScreen(), // ✅ Entry point
     );
   }
 }

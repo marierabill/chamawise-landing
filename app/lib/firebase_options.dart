@@ -25,10 +25,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
         return windows;
       case TargetPlatform.linux:
@@ -45,12 +42,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyB_lEbmkRCKH7p-mfcZ-WiO6wQRydVFZn8',
-    appId: '1:737399152771:web:e7261713103546cd1e3bb6',
+    appId: '1:737399152771:web:aec4902bdf782fb41e3bb6',
     messagingSenderId: '737399152771',
     projectId: 'chamawise-1ef86',
     authDomain: 'chamawise-1ef86.firebaseapp.com',
     storageBucket: 'chamawise-1ef86.firebasestorage.app',
-    measurementId: 'G-PTS8R5NHPC',
+    measurementId: 'G-MQ4FB8G4EC',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -79,4 +76,14 @@ class DefaultFirebaseOptions {
     storageBucket: 'chamawise-1ef86.firebasestorage.app',
     measurementId: 'G-MQ4FB8G4EC',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAKGJ8SRCudO26GHKNB3wEItP2tjLKHfZ4',
+    appId: '1:737399152771:ios:6e1726afcdc667681e3bb6',
+    messagingSenderId: '737399152771',
+    projectId: 'chamawise-1ef86',
+    storageBucket: 'chamawise-1ef86.firebasestorage.app',
+    iosBundleId: 'com.example.app',
+  );
+
 }

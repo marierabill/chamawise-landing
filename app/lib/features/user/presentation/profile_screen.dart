@@ -61,39 +61,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> uploadImage() async {
-    if (user == null) return;
+  if (user == null) return;
 
-    try {
-      final storageRef = FirebaseStorage.instance.ref().child('profile_pics/${user!.uid}.jpg');
-      UploadTask uploadTask;
+  try {
+    // 🔹 Correct storage path — matches Firebase Storage rules
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('profile_pics/${user!.uid}/${user!.uid}.jpg');
 
-      if (kIsWeb && _webImage != null) {
-        uploadTask = storageRef.putData(_webImage!, SettableMetadata(contentType: 'image/jpeg'));
-      } else if (_selectedImage != null) {
-        uploadTask = storageRef.putFile(_selectedImage!);
-      } else {
-        return;
-      }
+    UploadTask uploadTask;
 
-      final snapshot = await uploadTask.whenComplete(() {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      await FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
-        'photoUrl': downloadUrl,
-      });
-
-      setState(() => _imageUrl = downloadUrl);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile picture updated successfully!')),
+    if (kIsWeb && _webImage != null) {
+      uploadTask = storageRef.putData(
+        _webImage!,
+        SettableMetadata(contentType: 'image/jpeg'),
       );
-    } catch (e) {
-      debugPrint('Error uploading image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload image: $e')),
-      );
+    } else if (_selectedImage != null) {
+      uploadTask = storageRef.putFile(_selectedImage!);
+    } else {
+      return;
     }
+
+    final snapshot = await uploadTask.whenComplete(() {});
+    final downloadUrl = await snapshot.ref.getDownloadURL();
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .update({'photoUrl': downloadUrl});
+
+    setState(() => _imageUrl = downloadUrl);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile picture updated successfully!')),
+    );
+  } catch (e) {
+    debugPrint('Error uploading image: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to upload image: $e')),
+    );
   }
+}
+
 
   Future<void> updateProfile() async {
     if (user == null) return;

@@ -1,18 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  User? get user => FirebaseAuth.instance.currentUser;
+
   Future<void> createUserProfile(String uid, String email) async {
     final userRef = _db.collection('users').doc(uid);
-
     final snapshot = await userRef.get();
+
     if (!snapshot.exists) {
       await userRef.set({
-        'uid': uid,
+        'uid': uid, // ✅ Use uid argument, not user!.uid
         'email': email,
         'createdAt': FieldValue.serverTimestamp(),
-        'name': '', // user can update later
+        'name': '',
         'chamaMemberships': [],
       });
     }
