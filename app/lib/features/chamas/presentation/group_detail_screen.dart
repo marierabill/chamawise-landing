@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:chamawise_app/features/chamas/presentation/edit_group_screen.dart';
 
-
 class GroupDetailScreen extends StatelessWidget {
   final String groupId;
 
@@ -11,41 +10,53 @@ class GroupDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-	final groupRef = FirebaseFirestore.instance.collection('chamas').doc(groupId);
+    final groupRef = FirebaseFirestore.instance.collection('chamas').doc(groupId);
+    final currentUser = FirebaseAuth.instance.currentUser;
 
+    return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        // 🔹 Dynamic Chama Name + Member Count
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: groupRef.snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Text("Chama Details");
+            }
+            final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+            final name = data['name'] ?? 'Chama';
+            final members = List<String>.from(data['members'] ?? []);
+            return Text("$name (${members.length})");
+          },
+        ),
+        actions: [
+          StreamBuilder<DocumentSnapshot>(
+            stream: groupRef.snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
 
-	   return Scaffold(
-		appBar: AppBar(
-		  title: const Text("Chama Details"),
-		  centerTitle: true,
-		  actions: [
-			StreamBuilder<DocumentSnapshot>(
-			  stream: groupRef.snapshots(),
-			  builder: (context, snapshot) {
-				if (!snapshot.hasData) return const SizedBox.shrink();
+              final groupData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+              final creatorId = groupData['creatorId'];
+              final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-				final groupData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-				final creatorId = groupData['creatorId'];
-				final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-				if (creatorId == currentUserId) {
-				  return IconButton(
-					icon: const Icon(Icons.edit),
-					onPressed: () {
-					  Navigator.push(
-						context,
-						MaterialPageRoute(
-						  builder: (_) => EditChamaScreen(chamaId: groupRef.id),
-						),
-					  );
-					},
-				  );
-				}
-				return const SizedBox.shrink();
-			  },
-			),
-		  ],
-		),
+              if (creatorId == currentUserId) {
+                return IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditChamaScreen(chamaId: groupRef.id),
+                      ),
+                    );
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
 
       body: StreamBuilder<DocumentSnapshot>(
         stream: groupRef.snapshots(),
@@ -64,13 +75,15 @@ class GroupDetailScreen extends StatelessWidget {
           final inviteCode = groupData['inviteCode'] ?? '';
           final description = groupData['description'] ?? '';
           final members = List<String>.from(groupData['members'] ?? []);
+          final creatorId = groupData['creatorId'];
+          final isCreator = creatorId == currentUser?.uid;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🔹 Group Info Section
+                // 🔹 Group Info
                 Text(
                   groupName,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -82,7 +95,36 @@ class GroupDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // 🔹 Invite Code Section
+                // 🔹 Quick Stats
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Group Overview",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Total Members:"),
+                          Text("${members.length}",
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // 🔹 Invite Code
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -103,7 +145,7 @@ class GroupDetailScreen extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                // 🔹 Members List Section
+                // 🔹 Members List
                 const Text(
                   "Members",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -155,6 +197,33 @@ class GroupDetailScreen extends StatelessWidget {
                     );
                   },
                 ),
+
+                const SizedBox(height: 30),
+
+                // 🔹 Leave Chama Button (non-creator only)
+                if (!isCreator)
+                  Center(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                      ),
+                      onPressed: () async {
+                        final userId = FirebaseAuth.instance.currentUser!.uid;
+                        await groupRef.update({
+                          'members': FieldValue.arrayRemove([userId])
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("You left the chama.")),
+                        );
+
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.exit_to_app),
+                      label: const Text("Leave Chama"),
+                    ),
+                  ),
               ],
             ),
           );
