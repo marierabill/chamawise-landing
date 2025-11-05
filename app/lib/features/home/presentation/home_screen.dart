@@ -194,25 +194,22 @@ class GroupsTab extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot>(
       stream: userRef.snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
         final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
         final joinedGroups = List<String>.from(userData['chamas'] ?? []);
 
-        // 🔹 If user hasn’t joined any chama yet
+        // 🔹 Empty State: No chama joined or created yet
         if (joinedGroups.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  "You haven’t joined a Chama yet!",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.group_add),
-                  label: const Text("Create a Chama"),
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text("My Chamas"),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  tooltip: "Create Chama",
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -220,17 +217,55 @@ class GroupsTab extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 10),
-                TextButton(
+                IconButton(
+                  icon: const Icon(Icons.key),
+                  tooltip: "Join via Code",
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const JoinGroupScreen()),
                     );
                   },
-                  child: const Text("Join using Invite Code"),
                 ),
               ],
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.groups_outlined, size: 80, color: Colors.grey),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "You haven’t joined any chama yet!",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.group_add),
+                      label: const Text("Create a Chama"),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const JoinGroupScreen()),
+                        );
+                      },
+                      child: const Text("Join using Invite Code"),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
@@ -262,14 +297,15 @@ class GroupsTab extends StatelessWidget {
               ),
             ],
           ),
-          body: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('chamas')
-                .where(FieldPath.documentId, whereIn: joinedGroups)
-                .snapshots(),
+          body: FutureBuilder<List<DocumentSnapshot>>(
+            // ✅ Firestore `whereIn` has a limit of 10. Split if needed.
+            future: _fetchUserChamas(joinedGroups),
             builder: (context, groupSnap) {
-              if (!groupSnap.hasData) return const Center(child: CircularProgressIndicator());
-              final chamas = groupSnap.data!.docs;
+              if (groupSnap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final chamas = groupSnap.data ?? [];
 
               if (chamas.isEmpty) {
                 return const Center(child: Text("No chamas found."));
@@ -284,6 +320,8 @@ class GroupsTab extends StatelessWidget {
                   final name = groupData['name'] ?? 'Unnamed Group';
                   final description = groupData['description'] ?? '';
                   final memberCount = (groupData['members'] as List?)?.length ?? 0;
+                  final creatorId = groupData['creatorId'] ?? '';
+                  final isCreator = creatorId == user.uid;
 
                   return Card(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -303,7 +341,9 @@ class GroupsTab extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                      trailing: isCreator
+                          ? const Icon(Icons.star, color: Colors.orange)
+                          : const Icon(Icons.arrow_forward_ios, size: 18),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -321,6 +361,27 @@ class GroupsTab extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// 🔹 Handles Firestore whereIn limitations (max 10)
+  Future<List<DocumentSnapshot>> _fetchUserChamas(List<String> joinedGroups) async {
+    final List<DocumentSnapshot> allDocs = [];
+    const int batchSize = 10;
+
+    for (int i = 0; i < joinedGroups.length; i += batchSize) {
+      final subList = joinedGroups.sublist(
+        i,
+        i + batchSize > joinedGroups.length ? joinedGroups.length : i + batchSize,
+      );
+
+      final querySnap = await FirebaseFirestore.instance
+          .collection('chamas')
+          .where(FieldPath.documentId, whereIn: subList)
+          .get();
+
+      allDocs.addAll(querySnap.docs);
+    }
+    return allDocs;
   }
 }
 
