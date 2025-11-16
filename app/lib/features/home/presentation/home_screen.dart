@@ -6,6 +6,8 @@ import 'package:chamawise_app/features/user/presentation/profile_screen.dart';
 import 'package:chamawise_app/features/chamas/presentation/create_group_screen.dart';
 import 'package:chamawise_app/features/chamas/presentation/join_group_screen.dart';
 import 'package:chamawise_app/features/chamas/presentation/group_detail_screen.dart';
+import 'package:chamawise_app/features/chamas/contributions/contributions_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -71,84 +73,260 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // --------------------
-// 🔹 Dashboard Tab
+// 🔹 Dashboard Tab (Auto-updating Contributions)
 // --------------------
-class DashboardTab extends StatelessWidget {
+class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
 
   @override
+  State<DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends State<DashboardTab> {
+  final user = FirebaseAuth.instance.currentUser;
+
+  @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Center(child: Text('User not logged in'));
     }
 
-    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(user!.uid);
 
     return StreamBuilder<DocumentSnapshot>(
       stream: userDoc.snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+        final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
         final name = data['name'] ?? '';
         final email = data['email'] ?? '';
         final photoUrl = data['photoUrl'] ?? '';
         final joinedChamas = List<String>.from(data['chamas'] ?? []);
-
         final totalChamas = joinedChamas.length;
 
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 🔹 Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Welcome back,",
-                          style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                        ),
-                        Text(
-                          name.isNotEmpty ? name : email,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundImage:
-                          (photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
-                      child: (photoUrl.isEmpty)
-                          ? const Icon(Icons.person, color: Colors.white)
-                          : null,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
+        // 🔹 Watch user contributions in all joined chamas
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collectionGroup('contributions')
+              .where('userId', isEqualTo: user!.uid)
+              .snapshots(),
+          builder: (context, contributionsSnap) {
+            if (contributionsSnap.hasError) {
+              return Center(child: Text('Error: ${contributionsSnap.error}'));
+            }
 
-                const Text(
-                  'Your Overview',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 20),
+            if (contributionsSnap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                _buildInfoCard("Total Chamas", totalChamas.toString()),
-                const SizedBox(height: 20),
-                _buildInfoCard("Your Contributions", "Ksh 0.00"),
-              ],
-            ),
-          ),
+            final docs = contributionsSnap.data?.docs ?? [];
+            double totalContributions = 0.0;
+
+            for (var doc in docs) {
+              try {
+                final data = doc.data() as Map<String, dynamic>;
+                final rawAmount = data['amount'];
+
+                if (rawAmount is int) {
+                  totalContributions += rawAmount.toDouble();
+                } else if (rawAmount is double) {
+                  totalContributions += rawAmount;
+                } else if (rawAmount is String) {
+                  totalContributions += double.tryParse(rawAmount) ?? 0.0;
+                }
+              } catch (e) {
+                debugPrint('Contribution parse error: $e');
+              }
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 🔹 Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Welcome back,",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                name.isNotEmpty ? name : email,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundImage:
+                                (photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+                            child: (photoUrl.isEmpty)
+                                ? const Icon(Icons.person, color: Colors.white)
+                                : null,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 40),
+                      const Text(
+                        'Your Overview',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildInfoCard("Total Chamas", totalChamas.toString()),
+                      const SizedBox(height: 20),
+                      _buildInfoCard(
+                        "Your Contributions",
+                        "Ksh ${totalContributions.toStringAsFixed(2)}",
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // 🔹 Navigate to ContributionsScreen
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.payments_outlined),
+                        label: const Text("View All Contributions"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
+                        ),
+                        onPressed: () async {
+                          await _handleContributionsNavigation(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
+    );
+  }
+
+  Future<void> _handleContributionsNavigation(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final userData = userDoc.data() ?? {};
+    final joinedChamas = List<String>.from(userData['chamas'] ?? []);
+
+    if (joinedChamas.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You haven't joined any chama yet.")),
+      );
+      return;
+    }
+
+    final List<Map<String, dynamic>> chamaList = [];
+    for (String chamaId in joinedChamas) {
+      final chamaDoc = await FirebaseFirestore.instance
+          .collection('chamas')
+          .doc(chamaId)
+          .get();
+
+      if (chamaDoc.exists) {
+        final data = chamaDoc.data()!;
+        chamaList.add({
+          'id': chamaId,
+          'name': data['name'] ?? 'Unnamed Chama',
+          'creatorId': data['creatorId'] ?? '',
+        });
+      }
+    }
+
+    String? selectedChamaId;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        String? tempSelection;
+
+        return AlertDialog(
+          title: const Text('Select a Chama'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: "Choose a Chama",
+                ),
+                value: tempSelection,
+                items: chamaList.map((chama) {
+                  return DropdownMenuItem<String>(
+                    value: chama['id'],
+                    child: Text(chama['name']),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => tempSelection = value);
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (tempSelection != null) {
+                  selectedChamaId = tempSelection;
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Continue"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selectedChamaId == null) return;
+
+    final selectedChama =
+        chamaList.firstWhere((c) => c['id'] == selectedChamaId);
+    final isCreator = selectedChama['creatorId'] == user!.uid;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContributionsScreen(
+          chamaId: selectedChama['id'],
+          chamaName: selectedChama['name'],
+          isCreator: isCreator,
+        ),
+      ),
     );
   }
 
@@ -163,17 +341,21 @@ class DashboardTab extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title, style: const TextStyle(fontSize: 16)),
-          Text(value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// --------------------
-// 🔹 Groups Tab (Enhanced)
-// --------------------
+
+
 // --------------------
 // 🔹 Groups Tab (Enhanced with Group List + Member View)
 // --------------------
@@ -189,7 +371,7 @@ class GroupsTab extends StatelessWidget {
       return const Center(child: Text("Please log in to view your chamas."));
     }
 
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user!.uid);
 
     return StreamBuilder<DocumentSnapshot>(
       stream: userRef.snapshots(),
@@ -321,7 +503,7 @@ class GroupsTab extends StatelessWidget {
                   final description = groupData['description'] ?? '';
                   final memberCount = (groupData['members'] as List?)?.length ?? 0;
                   final creatorId = groupData['creatorId'] ?? '';
-                  final isCreator = creatorId == user.uid;
+                  final isCreator = creatorId == user!.uid;
 
                   return Card(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
