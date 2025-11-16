@@ -39,8 +39,12 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(child: Text("No contributions found."));
           }
 
           final contributions = snapshot.data!.docs;
@@ -48,7 +52,7 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
             return _buildEmptyState(context);
           }
 
-          // Group by userId
+          // Group totals by user
           Map<String, double> userTotals = {};
           for (var doc in contributions) {
             final data = doc.data() as Map<String, dynamic>;
@@ -57,7 +61,10 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
             userTotals[uid] = (userTotals[uid] ?? 0) + amount;
           }
 
-          final totalContributions = userTotals.values.fold(0.0, (a, b) => a + b);
+          final totalContributions =
+              userTotals.values.fold(0.0, (a, b) => a + b);
+
+          final involvedUserIds = userTotals.keys.toList();
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -66,38 +73,80 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
               children: [
                 _buildSummaryCard(totalContributions),
                 const SizedBox(height: 20),
+
                 const Text(
                   "Member Contributions",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
+
                 Expanded(
-                  child: FutureBuilder<QuerySnapshot>(
-                    future: FirebaseFirestore.instance.collection('users').get(),
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .where(
+                          FieldPath.documentId,
+                          whereIn: involvedUserIds.isEmpty
+                              ? ["placeholder"]
+                              : involvedUserIds,
+                        )
+                        .snapshots(),
                     builder: (context, userSnapshot) {
-                      if (!userSnapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                      if (userSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator());
                       }
 
-                      final allUsers = {
+                      if (!userSnapshot.hasData) {
+                        return const Center(
+                            child: Text("Unable to load member data."));
+                      }
+
+                      final userDocs = {
                         for (var doc in userSnapshot.data!.docs)
-                          doc.id: (doc.data() as Map<String, dynamic>)['name'] ??
-                              (doc.data() as Map<String, dynamic>)['email'] ??
-                              'Unknown'
+                          doc.id: (doc.data() as Map<String, dynamic>)
                       };
 
                       return ListView.builder(
                         itemCount: userTotals.length,
                         itemBuilder: (context, index) {
                           final uid = userTotals.keys.elementAt(index);
-                          final name = allUsers[uid] ?? "User";
                           final total = userTotals[uid] ?? 0;
 
-                          return ListTile(
-                            leading: const Icon(Icons.person, color: Colors.green),
-                            title: Text(name),
-                            subtitle: Text("Ksh ${total.toStringAsFixed(2)}"),
-                            onTap: () => _showUserContributions(uid, allUsers[uid] ?? "User"),
+                          final userData = userDocs[uid] ?? {};
+                          final displayName = userData['name'] ??
+                              userData['email'] ??
+                              "User";
+                          final photoUrl = userData['photoUrl'] ?? '';
+
+                          return Card(
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.green.shade100,
+                                backgroundImage: photoUrl.isNotEmpty
+                                    ? NetworkImage(photoUrl)
+                                    : null,
+                                child: photoUrl.isEmpty
+                                    ? const Icon(Icons.person,
+                                        color: Colors.green)
+                                    : null,
+                              ),
+                              title: Text(displayName),
+                              subtitle: Text(
+                                "Ksh ${total.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              trailing: const Icon(Icons.arrow_forward_ios,
+                                  size: 16),
+                              onTap: () => _showUserContributions(
+                                  uid, displayName, photoUrl),
+                            ),
                           );
                         },
                       );
@@ -128,8 +177,13 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text("Total Contributions", style: TextStyle(fontSize: 16)),
-          Text("Ksh ${totalContributions.toStringAsFixed(2)}",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            "Ksh ${totalContributions.toStringAsFixed(2)}",
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -142,10 +196,13 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.payments_outlined, size: 80, color: Colors.grey),
+            const Icon(Icons.payments_outlined,
+                size: 80, color: Colors.grey),
             const SizedBox(height: 20),
-            const Text("No contributions recorded yet.",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+            const Text(
+              "No contributions recorded yet.",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+            ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
@@ -169,21 +226,28 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Amount (Ksh)"),
+              decoration:
+                  const InputDecoration(labelText: "Amount (Ksh)"),
             ),
             TextField(
               controller: _descController,
-              decoration: const InputDecoration(labelText: "Description (optional)"),
+              decoration: const InputDecoration(
+                labelText: "Description (optional)",
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
           ElevatedButton(
             onPressed: _addContribution,
             child: isLoading
                 ? const SizedBox(
-                    height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text("Add"),
           ),
         ],
@@ -213,7 +277,7 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
       });
 
       if (mounted) {
-        Navigator.pop(context); // close dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Contribution added successfully")),
         );
@@ -228,7 +292,8 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
     }
   }
 
-  Future<void> _showUserContributions(String userId, String userName) async {
+  Future<void> _showUserContributions(
+      String userId, String userName, String photo) async {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -241,45 +306,117 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
               .where('userId', isEqualTo: userId)
               .orderBy('timestamp', descending: true)
               .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
 
-            final docs = snapshot.data!.docs;
-            if (docs.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text("$userName has not made any contributions yet."),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "$userName’s Contributions",
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  ...docs.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final amount = (data['amount'] ?? 0).toDouble();
-                    final desc = data['description'] ?? '';
-                    final time = data['timestamp'] != null
-                        ? DateFormat('MMM d, y h:mm a')
-                            .format((data['timestamp'] as Timestamp).toDate())
-                        : 'Pending';
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundImage: photo.isNotEmpty
+                              ? NetworkImage(photo)
+                              : null,
+                          child: photo.isEmpty
+                              ? const Icon(Icons.person)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          "$userName’s Contributions",
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text("No contributions yet.",
+                        style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+              );
+            }
 
-                    return ListTile(
-                      leading: const Icon(Icons.monetization_on, color: Colors.green),
-                      title: Text("Ksh ${amount.toStringAsFixed(2)}"),
-                      subtitle: Text(desc.isNotEmpty ? "$desc • $time" : time),
-                    );
-                  }),
-                ],
+            final docs = snapshot.data!.docs;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundImage: photo.isNotEmpty
+                              ? NetworkImage(photo)
+                              : null,
+                          child: photo.isEmpty
+                              ? const Icon(Icons.person)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          "$userName’s Contributions",
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    ...docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final amount = (data['amount'] ?? 0).toDouble();
+                      final desc = data['description'] ?? '';
+                      final time = data['timestamp'] != null
+                          ? DateFormat('MMM d, y h:mm a')
+                              .format((data['timestamp'] as Timestamp).toDate())
+                          : 'Pending';
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: const Icon(Icons.attach_money,
+                              color: Colors.green),
+                          title: Text(
+                            "Ksh ${amount.toStringAsFixed(2)}",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold),
+                          ),
+                          subtitle:
+                              Text(desc.isNotEmpty ? "$desc • $time" : time),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
             );
           },
