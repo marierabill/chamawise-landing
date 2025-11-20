@@ -21,16 +21,18 @@ class ContributionsScreen extends StatefulWidget {
 
 class _ContributionsScreenState extends State<ContributionsScreen> {
   final user = FirebaseAuth.instance.currentUser;
+
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  String? _selectedUserForCreator;
+
   bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Contributions - ${widget.chamaName}"),
-      ),
+      appBar: AppBar(title: Text("Contributions - ${widget.chamaName}")),
+
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('chamas')
@@ -39,25 +41,23 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData) {
-            return const Center(child: Text("No contributions found."));
-          }
-
           final contributions = snapshot.data!.docs;
+
           if (contributions.isEmpty) {
             return _buildEmptyState(context);
           }
 
-          // Group totals by user
+          // ---- Compute totals per user ----
           Map<String, double> userTotals = {};
           for (var doc in contributions) {
             final data = doc.data() as Map<String, dynamic>;
             final uid = data['userId'];
             final amount = (data['amount'] ?? 0).toDouble();
+
             userTotals[uid] = (userTotals[uid] ?? 0) + amount;
           }
 
@@ -67,19 +67,19 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
           final involvedUserIds = userTotals.keys.toList();
 
           return Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSummaryCard(totalContributions),
                 const SizedBox(height: 20),
 
-                const Text(
-                  "Member Contributions",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                const Text("Member Contributions",
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
 
+                // Fetch user profiles
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
@@ -92,15 +92,9 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
                         )
                         .snapshots(),
                     builder: (context, userSnapshot) {
-                      if (userSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(
-                            child: CircularProgressIndicator());
-                      }
-
                       if (!userSnapshot.hasData) {
                         return const Center(
-                            child: Text("Unable to load member data."));
+                            child: CircularProgressIndicator());
                       }
 
                       final userDocs = {
@@ -113,12 +107,13 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
                         itemBuilder: (context, index) {
                           final uid = userTotals.keys.elementAt(index);
                           final total = userTotals[uid] ?? 0;
-
                           final userData = userDocs[uid] ?? {};
+
                           final displayName = userData['name'] ??
                               userData['email'] ??
-                              "User";
-                          final photoUrl = userData['photoUrl'] ?? '';
+                              "Member";
+
+                          final photo = userData['photoUrl'] ?? '';
 
                           return Card(
                             elevation: 1,
@@ -128,10 +123,10 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: Colors.green.shade100,
-                                backgroundImage: photoUrl.isNotEmpty
-                                    ? NetworkImage(photoUrl)
+                                backgroundImage: photo.isNotEmpty
+                                    ? NetworkImage(photo)
                                     : null,
-                                child: photoUrl.isEmpty
+                                child: photo.isEmpty
                                     ? const Icon(Icons.person,
                                         color: Colors.green)
                                     : null,
@@ -145,7 +140,10 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
                               trailing: const Icon(Icons.arrow_forward_ios,
                                   size: 16),
                               onTap: () => _showUserContributions(
-                                  uid, displayName, photoUrl),
+                                uid,
+                                displayName,
+                                photo,
+                              ),
                             ),
                           );
                         },
@@ -158,15 +156,17 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
           );
         },
       ),
+
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddContributionDialog,
-        label: const Text("Add Contribution"),
         icon: const Icon(Icons.add),
+        label: const Text("Add Contribution"),
       ),
     );
   }
 
-  Widget _buildSummaryCard(double totalContributions) {
+  // ------------------- SUMMARY BOX -----------------------
+  Widget _buildSummaryCard(double total) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -177,36 +177,31 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text("Total Contributions", style: TextStyle(fontSize: 16)),
-          Text(
-            "Ksh ${totalContributions.toStringAsFixed(2)}",
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text("Ksh ${total.toStringAsFixed(2)}",
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
+  // ------------------- EMPTY STATE -----------------------
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.payments_outlined,
                 size: 80, color: Colors.grey),
             const SizedBox(height: 20),
-            const Text(
-              "No contributions recorded yet.",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-            ),
+            const Text("No contributions recorded yet.",
+                style: TextStyle(fontSize: 18)),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text("Add Your First Contribution"),
+              label: const Text("Add First Contribution"),
               onPressed: _showAddContributionDialog,
             ),
           ],
@@ -215,54 +210,147 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
     );
   }
 
-  Future<void> _showAddContributionDialog() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Add Contribution"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: "Amount (Ksh)"),
+// ------------------- ADD CONTRIBUTION (ROLE-AWARE) -----------------------
+Future<void> _showAddContributionDialog() async {
+  List<Map<String, dynamic>> membersList = [];
+
+  if (widget.isCreator) {
+    // 🔥 Fetch the chama document (contains the members array)
+    final chamaDoc = await FirebaseFirestore.instance
+        .collection('chamas')
+        .doc(widget.chamaId)
+        .get();
+
+    // 🔥 Extract array of member IDs
+    List<String> memberIds =
+        List<String>.from(chamaDoc.data()?['members'] ?? []);
+
+    if (memberIds.isNotEmpty) {
+      // 🔥 Fetch user documents based on array
+      final usersSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: memberIds)
+          .get();
+
+      membersList = usersSnap.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          "id": doc.id,
+          "name": data["name"] ?? "Unnamed",
+          "email": data["email"] ?? "",
+          "photoUrl": data["photoUrl"] ?? "",
+        };
+      }).toList();
+    }
+  }
+
+  showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: Text(
+              widget.isCreator
+                  ? "Log a Contribution"
+                  : "Add Your Contribution",
             ),
-            TextField(
-              controller: _descController,
-              decoration: const InputDecoration(
-                labelText: "Description (optional)",
+
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.isCreator) ...[
+                    membersList.isEmpty
+                        ? const Text(
+                            "No members found.\nAdd members to this chama first.",
+                            style: TextStyle(color: Colors.red),
+                          )
+                        : DropdownButtonFormField<String>(
+                            value: _selectedUserForCreator,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: "Select Member",
+                            ),
+                            items: membersList
+                                .map<DropdownMenuItem<String>>((m) {
+                              return DropdownMenuItem<String>(
+                                value: m["id"],
+                                child: Text(
+                                  m["name"] ?? m["email"] ?? "Member",
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (v) {
+                              setStateDialog(() {
+                                _selectedUserForCreator = v;
+                              });
+                            },
+                          ),
+
+                    const SizedBox(height: 16),
+                  ],
+
+                  TextField(
+                    controller: _amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Amount (Ksh)"),
+                  ),
+
+                  TextField(
+                    controller: _descController,
+                    decoration: const InputDecoration(labelText: "Description"),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: _addContribution,
-            child: isLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text("Add"),
-          ),
-        ],
-      ),
-    );
-  }
+
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                child: isLoading
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text("Add"),
+                onPressed: membersList.isEmpty && widget.isCreator
+                    ? null
+                    : _addContribution,
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+
+
 
   Future<void> _addContribution() async {
     final amountText = _amountController.text.trim();
-    if (amountText.isEmpty || double.tryParse(amountText) == null) return;
+    if (amountText.isEmpty) return;
+
+    final amount = double.tryParse(amountText);
+    if (amount == null) return;
+
+    final desc = _descController.text.trim();
+
+    String uidToLog = user!.uid;
+
+    if (widget.isCreator) {
+      if (_selectedUserForCreator == null) return;
+      uidToLog = _selectedUserForCreator!;
+    }
 
     setState(() => isLoading = true);
-
-    final amount = double.parse(amountText);
-    final desc = _descController.text.trim();
 
     try {
       await FirebaseFirestore.instance
@@ -270,7 +358,7 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
           .doc(widget.chamaId)
           .collection('contributions')
           .add({
-        'userId': user!.uid,
+        'userId': uidToLog,
         'amount': amount,
         'description': desc,
         'timestamp': FieldValue.serverTimestamp(),
@@ -279,148 +367,123 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Contribution added successfully")),
+          const SnackBar(content: Text("Contribution added")),
         );
       }
 
       _amountController.clear();
       _descController.clear();
+      _selectedUserForCreator = null;
     } catch (e) {
-      debugPrint("Error adding contribution: $e");
+      debugPrint("Error: $e");
     } finally {
       setState(() => isLoading = false);
     }
   }
 
+  // ------------------- MEMBER HISTORY -----------------------
   Future<void> _showUserContributions(
-      String userId, String userName, String photo) async {
+      String uid, String userName, String photo) async {
+    final stream = FirebaseFirestore.instance
+        .collection('chamas')
+        .doc(widget.chamaId)
+        .collection('contributions')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+
+    List<DocumentSnapshot> cache = [];
+    bool loaded = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) {
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('chamas')
-              .doc(widget.chamaId)
-              .collection('contributions')
-              .where('userId', isEqualTo: userId)
-              .orderBy('timestamp', descending: true)
-              .snapshots(),
+        return StatefulBuilder(builder: (context, setSheet) {
+          return StreamBuilder<QuerySnapshot>(
+            stream: stream,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData && !loaded) {
+                return const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
+              if (snapshot.hasData && !loaded) {
+                cache = snapshot.data!.docs;
+                loaded = true;
+              }
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              final docs =
+                  snapshot.data?.docs.isNotEmpty == true
+                      ? snapshot.data!.docs
+                      : cache;
+
               return Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
                         CircleAvatar(
                           radius: 26,
-                          backgroundImage: photo.isNotEmpty
-                              ? NetworkImage(photo)
-                              : null,
+                          backgroundImage:
+                              photo.isNotEmpty ? NetworkImage(photo) : null,
                           child: photo.isEmpty
                               ? const Icon(Icons.person)
                               : null,
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          "$userName’s Contributions",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text("$userName’s Contributions",
+                            style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const Text("No contributions yet.",
-                        style: TextStyle(fontSize: 16)),
+
+                    Expanded(
+                      child: docs.isEmpty
+                          ? const Center(
+                              child: Text("No contributions yet"),
+                            )
+                          : ListView(
+                              children: docs.map((doc) {
+                                final data =
+                                    doc.data() as Map<String, dynamic>;
+                                final amt =
+                                    (data['amount'] ?? 0).toDouble();
+                                final desc = data['description'] ?? '';
+                                final ts = data['timestamp'];
+
+                                final time = ts is Timestamp
+                                    ? DateFormat('MMM d, h:mm a')
+                                        .format(ts.toDate())
+                                    : 'Pending';
+
+                                return Card(
+                                  child: ListTile(
+                                    leading: const Icon(Icons.money,
+                                        color: Colors.green),
+                                    title: Text(
+                                        "Ksh ${amt.toStringAsFixed(2)}",
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    subtitle: Text(desc.isEmpty
+                                        ? time
+                                        : "$desc • $time"),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                    ),
                   ],
                 ),
               );
-            }
-
-            final docs = snapshot.data!.docs;
-
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: 16,
-                right: 16,
-                top: 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundImage: photo.isNotEmpty
-                              ? NetworkImage(photo)
-                              : null,
-                          child: photo.isEmpty
-                              ? const Icon(Icons.person)
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          "$userName’s Contributions",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    ...docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final amount = (data['amount'] ?? 0).toDouble();
-                      final desc = data['description'] ?? '';
-                      final time = data['timestamp'] != null
-                          ? DateFormat('MMM d, y h:mm a')
-                              .format((data['timestamp'] as Timestamp).toDate())
-                          : 'Pending';
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          leading: const Icon(Icons.attach_money,
-                              color: Colors.green),
-                          title: Text(
-                            "Ksh ${amount.toStringAsFixed(2)}",
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold),
-                          ),
-                          subtitle:
-                              Text(desc.isNotEmpty ? "$desc • $time" : time),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+            },
+          );
+        });
       },
     );
   }
