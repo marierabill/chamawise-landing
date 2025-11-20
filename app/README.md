@@ -1,16 +1,55 @@
-# app
+# ChamaWise  
+A modern, mobile-first platform for managing Kenyan chamas with transparency, automation, and real-time contribution tracking.
 
-A new Flutter project.
+ChamaWise helps groups manage contributions, payments, members, and financial records in a clean, simple, and secure way powered by Flutter & Firebase.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 Features
 
-A few resources to get you started if this is your first Flutter project:
+### 👥 Chama Management
+- Create or join a chama using a unique invite code  
+- View chama details (name, description, creator, member list)  
+- Role-based permissions (Creator vs Member)  
+- Creator can update chama info  
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 💰 Contributions
+- Log contributions (amount, description, timestamp)  
+- View all member payments  
+- Automatic total contributions calculation  
+- Role-dependent permissions:  
+  - Creator can log payments for any member  
+  - Members can only log their own  
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 📊 Dashboard & Insights
+- Real-time Firestore-powered totals  
+- Summary on home screen for quick financial overview  
+
+### 🔐 Authentication & Security
+- Firebase Authentication (email/password, Google optional)  
+- Firestore security rules with role-based validation  
+- Only authenticated users can read/write data  
+
+### ☁️ Cloud Architecture
+- Firestore (NoSQL database)  
+- Firebase Auth  
+- Firebase Hosting / Flutter Web  
+- Flutter mobile build (Android / iOS)
+
+---
+
+## 🧱 Tech Stack
+
+| Layer | Technology |
+|------|------------|
+| Frontend | Flutter 3 (Material 3, Riverpod) |
+| Backend | Firebase Cloud Firestore |
+| Auth | Firebase Authentication |
+| State Management | Riverpod / StateNotifier |
+| Hosting | Firebase Hosting (Web) |
+| Platform | Android, iOS, Web |
+
+---
+
+## 📂 Project Structure (Flutter)
+
