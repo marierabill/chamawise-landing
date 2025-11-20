@@ -1,150 +1,160 @@
-📘 ChamaWise
-Modern, transparent chama management for Kenyan groups
+# 📘 ChamaWise
 
+### *Modern, transparent chama management for Kenyan groups*
 
+ChamaWise is a **mobile-first Flutter application** built to help Kenyan chamas (self-help groups) manage members, contributions, and financial records with **real-time Firestore updates**, transparency, and robust security.
 
+---
 
+## 📚 Table of Contents
 
+* [Features](#-features)
+* [Tech Stack](#️-tech-stack)
+* [Project Structure](#-project-structure)
+* [Installation](#️-installation)
+* [Firebase Setup](#-firebase-setup)
+* [Running the App](#️-running-the-app)
+* [Firestore Security Rules](#-firestore-security-rules)
+* [Roadmap](#-roadmap)
+* [Contributing](#-contributing)
+* [License](#-license)
+* [Support](#-support)
 
-ChamaWise is a mobile-first Flutter application designed to help Kenyan chamas (groups) manage contributions, members, and financial records with transparency and real-time updates.
+---
 
-📚 Table of Contents
+## 🚀 Features
 
-Features
+### 👥 Chama Management
 
-Tech Stack
+* Create or join a chama using an invite code
+* View chama details and member lists
+* Admin privileges for the chama creator
+* Real-time updates powered by Firestore
 
-Project Structure
+### 💰 Contributions Module
 
-Installation
+* Log contributions (amount, member, description, timestamp)
+* View individual and total contributions
+* **Role-based permissions:**
 
-Firebase Setup
+  * Creator logs payments for any member
+  * Members log only their own
+* Full contribution history per chama
 
-Running the App
+### 📊 Dashboard
 
-Firestore Security Rules
+* Number of chamas you belong to
+* Total contributions
+* Personal contribution history
 
-Roadmap
+### 🔐 Authentication & Security
 
-Contributing
+* Firebase Authentication (email/password or anonymous)
+* Strong Firestore security rules
+* Only authenticated users can read/write
 
-License
+---
 
-Support
+## 🧱 Tech Stack
 
-🚀 Features
-👥 Chama Management
+| Component        | Technology             |
+| ---------------- | ---------------------- |
+| Framework        | Flutter                |
+| Backend          | Firebase Firestore     |
+| Authentication   | Firebase Auth          |
+| State Management | Riverpod               |
+| Deployment       | Firebase Hosting (Web) |
+| Platforms        | Android, Web           |
 
-Create or join a chama using an invite code
+---
 
-View chama details and members
+## 📂 Project Structure
 
-Creator has admin privileges
-
-Real-time updates through Firestore
-
-💰 Contributions Module
-
-Log contributions (amount, member, description, timestamp)
-
-View individual and total contributions
-
-Role-based permissions:
-
-Creator can log payments for any member
-
-Members can only log their own
-
-Contribution history per chama
-
-📊 Dashboard
-
-Summary of chama count
-
-Total contributions
-
-Personal contribution history
-
-🔐 Authentication & Security
-
-Firebase Authentication (email/password or anonymous)
-
-Firestore rules with strict role enforcement
-
-Only authenticated users can read/write data
-
-🧱 Tech Stack
-Component	Technology
-Framework	Flutter
-Backend	Firebase Firestore
-Auth	Firebase Authentication
-State Management	Riverpod
-Hosting	Firebase Hosting (Web)
-Platforms	Android, Web
-📂 Project Structure
+```
 lib/
- ├── features/
- │    ├── auth/
- │    ├── chamas/
- │    │     ├── data/
- │    │     ├── domain/
- │    │     ├── presentation/
- │    │     │     ├── dashboard_tab.dart
- │    │     │     ├── contributions_screen.dart
- │    │     │     ├── chama_details_screen.dart
- │    │     │     └── create_join_chama.dart
- │    ├── wallet/
- │    └── profile/
- │
- ├── services/
- │    ├── firestore_service.dart
- │    ├── auth_service.dart
- │
- ├── widgets/
- ├── utils/
- └── main.dart
+├── features/
+│   ├── auth/
+│   ├── chamas/
+│   │   ├── data/
+│   │   ├── domain/
+│   │   ├── presentation/
+│   │   │   ├── dashboard_tab.dart
+│   │   │   ├── contributions_screen.dart
+│   │   │   ├── chama_details_screen.dart
+│   │   │   └── create_join_chama.dart
+│   ├── wallet/
+│   └── profile/
+│
+├── services/
+│   ├── firestore_service.dart
+│   ├── auth_service.dart
+│
+├── widgets/
+├── utils/
+└── main.dart
+```
 
-⚙️ Installation
-1. Clone the repository
+---
+
+## ⚙️ Installation
+
+### 1. Clone the repository
+
+```bash
 git clone https://github.com/yourusername/chamawise.git
 cd chamawise
+```
 
-2. Get Flutter packages
+### 2. Install Flutter dependencies
+
+```bash
 flutter pub get
+```
 
-🔥 Firebase Setup
-Enable the following Firebase services:
+---
 
-Firestore
+## 🔥 Firebase Setup
 
-Firebase Authentication
+Enable these Firebase services:
 
-(Optional) App Check
+* Firestore
+* Firebase Authentication
+* (Optional) App Check
+* Firebase Hosting (for web builds)
 
-Firebase Hosting if deploying web build
+Add Firebase config files:
 
-Add Firebase config:
+* `google-services.json` → `android/app/`
+* `GoogleService-Info.plist` → `ios/Runner/`
+* Ensure Firebase Web config is in `web/index.html`
 
-Add google-services.json → android/app/
+---
 
-Add GoogleService-Info.plist → ios/Runner/
+## ▶️ Running the App
 
-Ensure web config is in web/index.html
+### Android
 
-▶️ Running the App
-Mobile (Android)
+```bash
 flutter run
+```
 
-Web
+### Web
+
+```bash
 flutter run -d chrome
+```
 
-Production Web Build
+### Production Web Build
+
+```bash
 flutter build web
+```
 
-🔐 Firestore Security Rules
+---
 
-Copy these into Firestore Rules:
+## 🔐 Firestore Security Rules
 
+```js
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -182,47 +192,64 @@ service cloud.firestore {
     }
   }
 }
+```
 
-🗺️ Roadmap
-Completed
+---
 
-✔ Core authentication
-✔ Create/join chama
-✔ Chama dashboard
-✔ Contributions system
-✔ Role-based permissions
+## 🗺️ Roadmap
 
-Coming Next
+### ✅ Completed
 
-⬜ Wallet module (withdrawals, loans, savings)
-⬜ M-Pesa STK push integration
-⬜ Export to PDF
-⬜ Push notifications
-⬜ Chama analytics dashboard
+* Core Authentication
+* Create/Join Chama
+* Chama Dashboard
+* Contribution System
+* Role-Based Permissions
 
-🤝 Contributing
+### 🔜 Coming Next
 
-Pull requests are welcome.
+* ⬜ Wallet Module (withdrawals, loans, savings)
+* ⬜ M-Pesa STK Push Integration
+* ⬜ Export to PDF
+* ⬜ Push Notifications
+* ⬜ Enhanced Chama Analytics Dashboard
 
-Guidelines:
+---
 
-Follow Flutter best practices
+## 🤝 Contributing
 
-Use Riverpod for state management
+Pull requests are welcome!
 
-Keep UI modular
+### Contribution Guidelines
 
-Commit with clear messages
+* Follow Flutter best practices
+* Use Riverpod for state management
+* Keep UI components modular
+* Use clear, descriptive commit messages
 
-📜 License
+---
 
-This project is proprietary.
+## 📜 License
+
+This project is **proprietary**.
 All rights reserved.
 
-📞 Support
+---
 
-For questions or business inquiries contact:
+## 📞 Support
 
-Email: marierabill@gmail.com
+For questions or business inquiries:
 
-Phone: +254 711 118 443 / +254 706 712 799 
+**Email:** [marierabill@gmail.com](mailto:marierabill@gmail.com)
+**Phone:** +254 711 118 443 / +254 706 712 799
+
+---
+
+If you'd like this:
+
+✅ Wrapped entirely inside a Markdown code block
+✅ Redesigned with GitHub badges
+✅ Styled with emojis & colored shields
+✅ With screenshots or a banner
+
+Just tell me!
