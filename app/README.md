@@ -242,14 +242,3 @@ For questions or business inquiries:
 
 **Email:** [marierabill@gmail.com](mailto:marierabill@gmail.com)
 **Phone:** +254 711 118 443 / +254 706 712 799
-
----
-
-If you'd like this:
-
-✅ Wrapped entirely inside a Markdown code block
-✅ Redesigned with GitHub badges
-✅ Styled with emojis & colored shields
-✅ With screenshots or a banner
-
-Just tell me!
